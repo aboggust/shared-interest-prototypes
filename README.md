@@ -8,6 +8,8 @@ Authors: [Angie Boggust](http://angieboggust.com/), [Benjamin Hoover](https://ww
 
 Shared Interest is a method to quantify model behavior by comparing human and model decision making. In Shared Interest, human decision is approximated via ground truth annotations and model decision making is approximated via saliency. By quantifying each instance in a dataset, Shared Interest can enable large-scale analysis of model behavior.
 
+Each interface is stored in a seperate branch. The computer vision interface is on `computer-vision`, the NLP interface is on `nlp`, and the intreactive probing interface is on `interactive-probing`.
+
 ## Getting Started
 
 Before cloning this repo, [install](https://docs.github.com/en/free-pro-team@latest/github/managing-large-files/installing-git-large-file-storage) `git lfs`. When you clone the repo, the data files will automatically download. 
