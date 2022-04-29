@@ -1,0 +1,33 @@
+name: shared-interest
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+  - anaconda
+dependencies:
+  - pip>=19.0.3
+  - python>=3.8
+  - pandas
+  - boto3
+  - regex
+  - numpy
+  - rasterio
+  - cachetools
+  - gunicorn
+  - pytest
+  - mypy
+  - black
+  - shapely
+  - opencv
+  - pillow
+  - pytorch
+  - torchvision
+  - lime
+  - tqdm
+  - scikit-learn
+  - scikit-image
+  - nltk
+  - pip:
+    - fastapi[all]==0.54.1
+    - pydantic>=1.2.0,<2.0.0
+    - async-lru
