@@ -19,7 +19,7 @@ function init(base: D3Sel) {
             <div id="popup-content"></div>
         </div>
         <div class="layout horizontal center center-center" id="main-wrapper">
-            <div id="draw-panel" class="flex-6 self-center layout vertical center-center">
+            <div id="draw-panel" class="">
                 <div class='select-score-container'>
                     <div class="selection col-sm-9">
                         <div class="input-group input-group-sm mb-2">
@@ -33,7 +33,6 @@ function init(base: D3Sel) {
                     </div>
                 </div>
                 <div id="interactive-mask"></div>
-                <div class="spacer-5"></div>
             </div>
             <div id="divider" class=""></div>
             <div id="results-panel" class="flex-6 self-center"></div>

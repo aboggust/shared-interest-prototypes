@@ -17,7 +17,6 @@ body {
   background-color: rgb(255, 255, 255);
   font-family: "IBM Plex Sans", sans-serif;
   font-weight: 400;
-  height: var(--body-height);
 }
 
 #app {
@@ -31,22 +30,24 @@ body {
 }
 
 #draw-panel {
-  height: 90%;
-  position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-right: 30px;
 }
 
 #divider {
-  --height: 90%;
   width: 1px;
-  height: var(--height);
-  margin-top: calc((100% - var(--height)) / 2);
   background-color: gray;
 }
 
 #results-panel {
   position: relative;
-  height: 90%;
+  display: flex;
+  flex-direction: row;
   overflow-y: auto;
+  margin-left: 15px;
 }
 
 #main-popup {
@@ -396,17 +397,21 @@ canvas {
 }
 
 .interactive-saliency-mask {
-  width: 400px;
-  height: 400px;
+//   width: 400px;
+//   height: 400px;
 
-  #paint-brush-label {
-    // font-weight: 600;
-    width: 200px;
-    text-align: center;
-    background-color: #e6e6e6;
-    margin-bottom: 10px;
-    // font-size: 10pt;
-  }
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    #paint-brush-label {
+        // font-weight: 600;
+        width: 200px;
+        text-align: center;
+        background-color: #e6e6e6;
+        margin-bottom: 10px;
+        // font-size: 10pt;
+    }
 }
 
 #loading {
@@ -508,4 +513,19 @@ canvas {
   color: #495057;
   background-color: #e9ecef;
   border-color: rgb(206, 212, 218);
+}
+
+.button-container{
+    display: flex;
+    flex-direction: row;
+    width: 100%
+}
+
+#reset-button, #submit-button {
+    width: 50%;
+}
+
+.custom-select:focus {
+    box-shadow: none;
+    border-color: rgb(206, 212, 218);
 }

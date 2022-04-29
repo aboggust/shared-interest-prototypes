@@ -68,22 +68,19 @@ export class InteractiveSaliencyMask extends HTMLComponent<CanvasImageMaskData> 
         const op = this.options;
         const self = this
         const templateHtml = `
-            <div class="layout vertical center-center" style="width: inherit;">
                 <div class="flex">
                     <button class="btn flex" id="select-image-button">Select an Image</button>
                 </div>
                 <div id="draw-canvas">
                     <canvas width=${op.width} height=${op.height} class="flex self-start"></canvas>
                 </div>
-                <div class="layout horizontal flex end between-justify" style="width: inherit">
-                    <div class="flex self-end layout horizontal end">
+                    <div class="button-container">
                         <button id="reset-button" class="flex btn self-start">Reset</button>
                         <button id="submit-button" class="flex btn self-start">Submit</button>
                     </div>
                 </div>
                 <div class="text" id="paint-brush-label">Paint Brush Size</div>
                 <div id="paint-brush-options"></div>
-            </div>
         `
         this.base.html(templateHtml)
         this.sels.resetBtn = this.base.select("#reset-button").on('click', () => {
