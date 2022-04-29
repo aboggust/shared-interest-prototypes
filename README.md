@@ -1,14 +1,10 @@
-# Shared Interest ([Article](https://dl.acm.org/doi/pdf/10.1145/3491102.3501965) | [Demo](http://shared-interest.csail.mit.edu))
+# Shared Interest ([Article](http://shared-interest.csail.mit.edu) | [Demo](http://shared-interest.csail.mit.edu/demo))
 ![Shared interest teaser](./client/src/assets/img/teaser.svg)
 
-This repository contains the interface code for:
-
-[Shared Interest: Measuring Human-AI Alignment to Identify Recurring Patterns in Model Behavior](https://arxiv.org/abs/2107.09234)  
-Authors: [Angie Boggust](http://angieboggust.com/), [Benjamin Hoover](https://www.bhoov.com/), [Arvind Satyanarayan](https://arvindsatya.com/), and [Hendrik Strobelt](http://hendrik.strobelt.com/)
-
-Shared Interest is a method to quantify model behavior by comparing human and model decision making. In Shared Interest, human decision is approximated via ground truth annotations and model decision making is approximated via saliency. By quantifying each instance in a dataset, Shared Interest can enable large-scale analysis of model behavior.
-
-Each interface is stored in a seperate branch. The computer vision interface is on `computer-vision`, the NLP interface is on `nlp`, and the intreactive probing interface is on `interactive-probing`.
+A method to explore model behavior by comparing ground truth regions and model explanations.
+Check out the [demo](http://shared-interest.csail.mit.edu/demo) to see shared interest applied to 
+ImageNet classification and melanoma prediction tasks.
+Read the [article](http://shared-interest.csail.mit.edu) presented at VISxAI 2020.
 
 ## Getting Started
 
@@ -20,8 +16,6 @@ From the root:
 2. `conda activate shared-interest`
 3. `pip install -e .`
 2. `cd client; npm i; npm run build`
-
-The main demo is available at `/`.
 
 ## Running Locally
 To start the server for development, run:
