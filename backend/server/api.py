@@ -17,3 +17,10 @@ class ImagesPayload(HashableBaseModel):
     case_study: str
     image_ids: List[str]
     score_fn: str
+
+# image, image_shape, mask, mask_shape, si_method:str, topk:int = 5
+class BestPredictionPayload(HashableBaseModel):
+    image: str
+    mask: str
+    si_method: str
+    topk: int

@@ -14,12 +14,13 @@ interface EventsI {
     onLabelHover: string
     onPredictionClick: string
     onPredictionHover: string
+    onImageClick: string
+    onImageMouseOver: string
+    onImageMouseOut: string
 }
 
 interface Selections {
     imgInfo: D3Sel
-    imgScores: D3Sel
-    imgLabels: D3Sel
     imgContainer: D3Sel
     mainImg: D3Sel
     bboxMask: D3Sel
@@ -33,6 +34,9 @@ const Events: EventsI = {
     onPredictionHover: "SingleSaliencyImage_onPredictionHover",
     onLabelClick: "SingleSaliencyImage_onLabelClick",
     onLabelHover: "SingleSaliencyImage_onLabelHover",
+    onImageClick: "SingleSaliencyImage_onImageClick",
+    onImageMouseOver: "SingleSaliencyImage_onImageMouseOver",
+    onImageMouseOut: "SingleSaliencyImage_onImageMouseOut",
 }
 
 function toImgStr(img: string) {
@@ -45,8 +49,12 @@ export class SingleSaliencyImage extends HTMLComponent<DI>{
     sels: Partial<Selections> = {}
     colorScale = d3.scaleSequential(d3.interpolateBlues)
         .domain([-0.2, 1]) // start the color scheme from light blue instead of white
-    
+
     static events = Events
+
+    options = {
+        showStats: true
+    }
 
     constructor(parent: HTMLElement, eventHandler?: SimpleEventHandler, options = {}) {
         super(parent, eventHandler, options)
@@ -56,69 +64,56 @@ export class SingleSaliencyImage extends HTMLComponent<DI>{
 
     _init() {
         const self = this
-        self.sels.imgScores = self.base.append("div").classed("image-info", true)
-        self.sels.imgLabels = self.base.append("div").classed("image-info", true)
-
+        const op = this.options
+        self.sels.imgInfo = self.base.append("div").classed("image-info", true)
         self.sels.imgContainer = self.base.append("div").classed("image-container", true)
-        self.sels.mainImg = self.sels.imgContainer.append("img").classed("saliency-image", true)
-        self.sels.bboxMask = self.sels.imgContainer.append("svg").classed("bbox", true).classed("mask", true)
-        self.sels.saliencyMask = self.sels.imgContainer.append("svg").classed("saliency", true).classed("mask", true)
+        self.sels.mainImg = self.sels.imgContainer.append("img").classed("saliency-image", true).attr('draggable', false)
+        self.sels.bboxMask = op.showStats && self.sels.imgContainer.append("svg").classed("bbox", true).classed("mask", true)
+        self.sels.saliencyMask = op.showStats && self.sels.imgContainer.append("svg").classed("saliency", true).classed("mask", true)
     }
 
     _render(img: SaliencyImg) {
         const self = this
+        const op = this.options
         const sels = this.sels
 
         const isCorrect = img.prediction == img.label
 
+        sels.mainImg.attr("src", toImgStr(img.image))
+            .attr("height", 175)
+            .attr("width", 175)
+            .on('click', () => {
+                d3.event.stopPropagation()
+                this.trigger(Events.onImageClick, img)
+            })
+            .on('mouseover', function () {
+                const me = d3.select(this)
+                me.style('cursor', 'pointer')
+            })
+            .on('mouseout', function () {
+                const me = d3.select(this)
+                me.style('cursor', 'default')
+            })
+
+        if (!op.showStats) return
         // INFO LOGIC
-        sels.imgScores.html('')
-        sels.imgLabels.html('')
+        sels.imgInfo.html('')
 
-        // IoU Score 
-        sels.imgScores.append('span')
+        sels.imgInfo.append('span')
             .classed('info', true)
             // .classed('btn', true) // Add when functionality has been added to score info
-            .text('IoU: ' + Number(img.iou).toFixed(2))
-            .style('background-color', self.colorScale(img.iou))
-            .style('color', img.iou < 0.5 ? '#212529' : '#e3e3e3')
-            .on("mouseover", function() {
-                self.trigger(Events.onScoreHover, {score: img.iou})
+            .text(Number(img.score).toFixed(2))
+            .style('background-color', self.colorScale(img.score))
+            .style('color', img.score < 0.5 ? '#212529' : '#e3e3e3')
+            .on("mouseover", function () {
+                self.trigger(Events.onScoreHover, { score: img.score })
             })
-            .on("click", function() {
-                self.trigger(Events.onScoreClick, {score: img.iou})
-            })
-
-        // EC Score 
-        sels.imgScores.append('span')
-            .classed('info', true)
-            // .classed('btn', true) // Add when functionality has been added to score info
-            .text('SC: ' + Number(img.explanation_coverage).toFixed(2))
-            .style('background-color', self.colorScale(img.explanation_coverage))
-            .style('color', img.explanation_coverage < 0.5 ? '#212529' : '#e3e3e3')
-            .on("mouseover", function() {
-                self.trigger(Events.onScoreHover, {score: img.explanation_coverage})
-            })
-            .on("click", function() {
-                self.trigger(Events.onScoreClick, {score: img.explanation_coverage})
+            .on("click", function () {
+                d3.event.stopPropagation()
+                self.trigger(Events.onScoreClick, { score: img.score })
             })
 
-        // GTC Score 
-        sels.imgScores.append('span')
-            .classed('info', true)
-            // .classed('btn', true) // Add when functionality has been added to score info
-            .text('GTC: ' + Number(img.ground_truth_coverage).toFixed(2))
-            .style('background-color', self.colorScale(img.ground_truth_coverage))
-            .style('color', img.ground_truth_coverage < 0.5 ? '#212529' : '#e3e3e3')
-            .on("mouseover", function() {
-                self.trigger(Events.onScoreHover, {score: img.ground_truth_coverage})
-            })
-            .on("click", function() {
-                self.trigger(Events.onScoreClick, {score: img.ground_truth_coverage})
-            })
-
-        // Label 
-        sels.imgLabels.append('span')
+        sels.imgInfo.append('span')
             .classed('info', true)
             .classed('btn', true)
             .text(img.label)
@@ -128,15 +123,15 @@ export class SingleSaliencyImage extends HTMLComponent<DI>{
             .style('text-overflow', 'ellipsis')
             .style('white-space', 'nowrap')
             .style('overflow', 'hidden')
-            .on("mouseover", function() {
-                self.trigger(Events.onLabelHover, {label: img.label})
+            .on("mouseover", function () {
+                self.trigger(Events.onLabelHover, { label: img.label })
             })
-            .on("click", function() {
-                self.trigger(Events.onLabelClick, {label: img.label})
+            .on("click", function () {
+                d3.event.stopPropagation()
+                self.trigger(Events.onLabelClick, { label: img.label })
             })
 
-        // Prediction
-        sels.imgLabels.append('span')
+        sels.imgInfo.append('span')
             .classed('info', true)
             .classed('btn', true)
             .text(img.prediction)
@@ -146,20 +141,17 @@ export class SingleSaliencyImage extends HTMLComponent<DI>{
             .style('text-overflow', 'ellipsis')
             .style('white-space', 'nowrap')
             .style('overflow', 'hidden')
-            .on("mouseover", function() {
-                self.trigger(Events.onPredictionHover, {prediction: img.prediction})
+            .on("mouseover", function () {
+                self.trigger(Events.onPredictionHover, { prediction: img.prediction })
             })
-            .on("click", function() {
-                self.trigger(Events.onPredictionClick, {prediction: img.prediction})
+            .on("click", function () {
+                d3.event.stopPropagation()
+                self.trigger(Events.onPredictionClick, { prediction: img.prediction })
             })
 
         // Container Logic
         sels.imgContainer.classed("correct", isCorrect)
         sels.imgContainer.classed("incorrect", !isCorrect)
-
-        sels.mainImg.attr("src", toImgStr(img.image))
-            .attr("height", 175)
-            .attr("width", 175)
 
         sels.bboxMask.html('')
         sels.bboxMask
@@ -168,9 +160,9 @@ export class SingleSaliencyImage extends HTMLComponent<DI>{
             .append("polygon")
             //@ts-ignore
             .attr("points", img.bbox)
-                .style('fill-opacity', '10%')
-                .style('stroke', '#f2d602')
-                .style('stroke-width', '1.5px')
+            .style('fill-opacity', '10%')
+            .style('stroke', '#f2d602')
+            .style('stroke-width', '1.5px')
 
         sels.saliencyMask.html('')
         sels.saliencyMask
@@ -179,11 +171,18 @@ export class SingleSaliencyImage extends HTMLComponent<DI>{
             .selectAll('polygon')
             .data(img.saliency)
             .join('polygon')
-                .attr("points", d => d)
-                .style('fill-opacity', '10%')
-                .style('stroke', '#d95f02')
-                .style('stroke-width', '1.5px')
+            .attr("points", d => d)
+            .style('fill-opacity', '10%')
+            .style('stroke', '#d95f02')
+            .style('stroke-width', '1.5px')
+    }
 
+    select() {
+        this.sels.mainImg.classed("selected-image", true)
+    }
+
+    deselect() {
+        this.sels.mainImg.classed("selected-image", false)
     }
 
 }

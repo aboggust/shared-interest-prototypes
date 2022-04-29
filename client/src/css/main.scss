@@ -1,12 +1,12 @@
 @import "palette.scss";
 @import "../fonts/plex_sans.css";
 @import "base";
+@import "flex";
 
 body {
-  font-family: 'IBM Plex Sans';
-  margin-left: auto;
+  font-family: "IBM Plex Sans";
+  margin-left: 10px;
   margin-right: auto;
-  width: 91%;
-  padding-top: 15px;
+  width: 80%;
+  max-width: 1500px;
 }
-

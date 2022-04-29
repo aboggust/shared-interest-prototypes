@@ -1,17 +1,34 @@
 import argparse
 import os
 from typing import *
-
 import numpy as np
-import pandas as pd
-import uvicorn
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
-from pydantic import BaseModel
 
+import torch
+import pandas as pd
+from fastapi import FastAPI
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import uvicorn
 import backend.server.api as api
 import backend.server.path_fixes as pf
+
+import torch
+from torchvision import models, transforms
+from pydantic import BaseModel
+import os
+import pandas as pd
+import pickle
+import json
+
+from backend.server.shared_interest.shared_interest import shared_interest 
+from backend.server.interpretability_methods.vanilla_gradients import VanillaGradients
+from backend.server.interpretability_methods.util import binarize_masks
+# import backend.server.api as api
+# import backend.server.path_fixes as pf
+from PIL import Image
+from io import BytesIO
+from base64 import b64decode
 
 parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -28,6 +45,7 @@ app.add_middleware(
 )
 
 prefix = os.environ.get('CLIENT_PREFIX', 'client')
+
 
 
 @app.get("/")
@@ -54,15 +72,16 @@ def send_static_client(file_path: str):
 # MAIN API
 # ======================================================================
 class SaliencyImage(BaseModel):
+    image_id: str
     image: str
     bbox: list
     saliency: list
     label: str
     prediction: str
     score: str
-    iou: str
-    ground_truth_coverage: str
-    explanation_coverage: str
+    iou: float
+    ground_truth_coverage: float
+    explanation_coverage: float
 
 
 class Bins(BaseModel):
@@ -71,8 +90,15 @@ class Bins(BaseModel):
     num: int
 
 
+class ConfusionMatrix(BaseModel):
+    label: str
+    prediction: str
+    count: int
+    mean: float
+
+
 # Load case study datasets
-datasets = ['data_dogs', 'data_vehicle', 'data_melanoma']
+datasets = ['data_dogs_10']
 dataframes = {}
 for dataset in datasets:
     dataframe = pd.read_json("./data/examples/%s.json" % dataset)
@@ -80,35 +106,24 @@ for dataset in datasets:
 
 
 @app.get("/api/get-images", response_model=List[str])
-async def get_images(case_study: str, method: str, sort_by: int,
-                     prediction_fn: str, score_fn: str, label_filter: str,
-                     iou_min: float, iou_max: float, ec_min: float,
-                     ec_max: float, gtc_min: float, gtc_max: float):
+async def get_images(case_study: str, sort_by: int, prediction_fn: str,
+                     score_fn: str, label_filter: str):
     """ Get images from dataset given the current filters.
 
     Args:
         case_study: The name of the case study dataset.
-        method: The name of the saliency method.
         sort_by: 1 if ascending, -1 if descending.
         prediction_fn: The prediction function. It can be 'all_images',
                        'correct_only', 'incorrect_only', or any label.
         score_fn: The score function name to apply.
         label_filter: The label filter to apply. It can be any label name or ''
                       for all labels.
-        iou_min: Min iou score to keep.
-        iou_max: Max iou score to keep.
-        ec_min: Min explanation coverage score to keep.
-        ec_max: Max explanation coverage score to keep.
-        gtc_min: Min ground truth coverage score to keep.
-        gtc_max: Max ground truth coverage score to keep.
 
     Returns:
         A list of image IDs from case_study filtered given the prediction_fn and
          label_filter and sorted by the score_fn in sort_by order.
     """
     df = dataframes[case_study]
-
-    # Filter by prediction
     if prediction_fn == "all_images":
         pred_inds = np.ones(len(df))
     elif prediction_fn == "correct_only":
@@ -118,19 +133,12 @@ async def get_images(case_study: str, method: str, sort_by: int,
     else:  # Assume predictionFn is a label
         pred_inds = df.prediction == prediction_fn
 
-    # Filter by label 
     if label_filter == '':
         label_inds = np.ones(len(df))
     else:
         label_inds = df.label == label_filter
 
-    # Filter by scores
-    iou_inds = np.logical_and(df.iou.round(2) >= iou_min, df.iou.round(2) <= iou_max)
-    ec_inds = np.logical_and(df.explanation_coverage.round(2) >= ec_min, df.explanation_coverage.round(2) <= ec_max)
-    gtc_inds = np.logical_and(df.ground_truth_coverage.round(2) >= gtc_min, df.ground_truth_coverage.round(2) <= gtc_max)
-
-    # Filter data frame.
-    mask = np.logical_and.reduce((pred_inds, label_inds, iou_inds, ec_inds, gtc_inds))
+    mask = np.logical_and(pred_inds, label_inds)
     filtered_df = df.loc[mask].sort_values(score_fn, kind="mergesort",
                                            ascending=sort_by == 1)
     image_ids = list(filtered_df.index)
@@ -138,13 +146,11 @@ async def get_images(case_study: str, method: str, sort_by: int,
 
 
 @app.get("/api/get-saliency-image", response_model=SaliencyImage)
-async def get_saliency_image(case_study: str, method: str, image_id: str,
-                             score_fn: str):
+async def get_saliency_image(case_study: str, image_id: str, score_fn: str):
     """Gets a single saliency image.
 
     Args:
         case_study: The name of the case study dataset.
-        method: The name of the saliency method.
         image_id: The id of the image to return.
         score_fn: The score function to return.
 
@@ -155,7 +161,7 @@ async def get_saliency_image(case_study: str, method: str, image_id: str,
     df = dataframes[case_study]
     filtered_df = df.loc[image_id]
     filtered_df['score'] = filtered_df[score_fn]
-    filtered_df['saliency'] = filtered_df[method]
+    filtered_df['image_id'] = image_id
     return filtered_df.to_dict()
 
 
@@ -164,8 +170,8 @@ async def get_saliency_images(payload: api.ImagesPayload):
     """Gets saliency images.
 
         Args:
-            payload: The payload containing the name of the case study, method,
-                     image IDs, and the score function.
+            payload: The payload containing the name of the case study, image
+                     IDs, and the score function.
 
         Returns:
             A dictionary of the image data for the image IDs and case study in
@@ -176,6 +182,7 @@ async def get_saliency_images(payload: api.ImagesPayload):
     df = dataframes[payload.case_study]
     filtered_df = df.loc[payload.image_ids]
     filtered_df['score'] = filtered_df[payload.score_fn]
+    filtered_df['image_id'] = payload.image_ids
     return filtered_df.to_dict('records')
 
 
@@ -199,8 +206,7 @@ async def bin_scores(payload: api.ImagesPayload, min_range: int = 0,
     """Bins the scores of the images.
 
     Args:
-        payload: The payload containing the case study, method, images,
-                 and score fn.
+        payload: The payload containing the case study, images, and score fn.
         min_range: The start of the bin range, inclusive. Defaults to 0.
         max_range: The end of the bin range, inclusive. Defaults to 1.
         num_bins: The number of bins to create. Defaults to 11.
@@ -218,6 +224,125 @@ async def bin_scores(payload: api.ImagesPayload, min_range: int = 0,
     bin_object = [{'x0': bin_edges[i], 'x1': bin_edges[i + 1], 'num': num}
                   for i, num in enumerate(list(hist))]
     return bin_object
+
+
+@app.get("/api/confusion-matrix", response_model=List[ConfusionMatrix])
+async def get_confusion_matrix_values(case_study: str, label_filter: str,
+                                      score_fn: str, n: int = 10):
+    """Gets the values of the confusion matrix.
+
+    Args:
+        case_study: The name of the case study dataset.
+        label_filter: The label filter to apply. It can be any label name or ''
+                      for all labels.
+        score_fn: The score function to return.
+        n: The nxn size of the confusion matrix.
+
+    Returns:
+        The confusion matrix of the top n confused labels.
+    """
+    df = dataframes[case_study]
+    if label_filter == '':
+        filtered_df = df.loc[df.label != df.prediction]
+    else:
+        filtered_df = df.loc[
+            (df.label == label_filter) & (df.label != df.prediction)]
+    confused_labels = filtered_df.groupby('label').agg('count') \
+                          .sort_values('image',
+                                       ascending=False).index.values.tolist()[
+                      :n]
+    top_predictions = df.loc[df.label.isin(confused_labels)].groupby(
+        'prediction').agg('count') \
+                          .sort_values('image',
+                                       ascending=False).index.values.tolist()[
+                      :n]
+    matrix_labels = list(set(top_predictions + confused_labels))
+    confusion_df = df.loc[
+        (df.label.isin(matrix_labels)) & (df.prediction.isin(matrix_labels))]
+    confusion_matrix = confusion_df.groupby(['label', 'prediction']) \
+        .agg(['count', 'mean'])[score_fn] \
+        .reset_index().to_dict('records')
+    return confusion_matrix
+
+
+# ======================================================================
+## Best Prediction API ##
+# ======================================================================
+
+
+def bytes2np(img_bytes):
+    """Convert image bytes from frontend to numpy array"""
+    im = Image.open(BytesIO(b64decode(img_bytes))).convert("RGB")
+    return np.array(im)
+
+# Load precomputed saliency maps
+SALIENCY_MASK_DIR = './data/examples/saliency_masks'
+SHAPE = (224, 224)
+NUM_CLASSES = 1000
+with open('./data/examples/imagenet_class_labels.json', 'r') as f:
+    CLASSNAMES = json.load(f)
+
+class BestPrediction(BaseModel):
+    classname: str
+    score: float
+    saliency_mask: list
+    ground_truth_coverage: float
+    explanation_coverage: float
+    iou: float
+
+@app.post("/api/get-best-prediction", response_model=List[BestPrediction])
+async def get_best_prediction(payload: api.BestPredictionPayload):
+    """Returns topk labels and saliency maps with the highest si_method score."""
+    fname = payload['fname']
+    mask = payload['mask']
+    si_method = payload['si_method']
+    topk = payload['topk']
+
+    # If the mask is empty, do not process
+    mask = (bytes2np(mask).sum(axis=-1) > 0)
+
+    mask = transforms.ToTensor()(mask)
+
+    if len(mask.shape) == 2:
+        mask.unsqueeze(0)
+    mask_batch = mask.repeat(NUM_CLASSES, 1, 1).numpy()
+
+    # Load saliency masks
+    with open(os.path.join(SALIENCY_MASK_DIR, 'human_annotation_data_dogs_10_%s.pkl' %(fname)), 'rb') as f:
+        saliency_masks = pickle.load(f)
+
+    # Compute shared interest scores.
+    iou_scores = shared_interest(mask_batch, saliency_masks, score='iou')
+    explanation_converage_scores = shared_interest(mask_batch, saliency_masks, score='explanation_coverage')
+    ground_truth_coverage_scores = shared_interest(mask_batch, saliency_masks, score='ground_truth_coverage')
+    if si_method == 'iou':
+        shared_interest_scores = iou_scores
+    elif si_method == 'explanation_coverage':
+        shared_interest_scores = explanation_converage_scores
+    elif si_method == 'ground_truth_coverage':
+        shared_interest_scores = ground_truth_coverage_scores
+
+    # Return topk saliency maps and scores.
+    max_inds = np.argpartition(shared_interest_scores, -topk)[-topk:]
+    max_inds_sorted = max_inds[np.argsort(shared_interest_scores[max_inds])][::-1]
+    top_scores = shared_interest_scores[max_inds_sorted]
+    top_iou = iou_scores[max_inds_sorted]
+    top_ground_truth_coverage = ground_truth_coverage_scores[max_inds_sorted]
+    top_explanation_coverage = explanation_converage_scores[max_inds_sorted]
+    top_saliency_masks = saliency_masks[max_inds_sorted]
+    top_classes = [CLASSNAMES[ind] for ind in max_inds_sorted]
+    
+    # Catch info for jupyter comparison:
+    print(f"\n\nFname: {fname}, max_inds: {max_inds_sorted}, classnames: {top_classes}\n\n")
+
+    output = [{'classname': str(top_classes[i]), 
+               'score': float(top_scores[i]), 
+               'iou': float(top_iou[i]),
+               'explanation_coverage': float(top_explanation_coverage[i]),
+               'ground_truth_coverage': float(top_ground_truth_coverage[i]),
+               'saliency_mask': top_saliency_masks[i].tolist()}
+            for i in range(topk)]
+    return output
 
 
 if __name__ == "__main__":

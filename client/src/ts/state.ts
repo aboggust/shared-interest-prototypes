@@ -2,14 +2,12 @@ import { URLHandler } from "./etc/URLHandler"
 
 export interface URLParameters {
     caseStudy: string,
-    method: string,
     scoreFn: string,
     sortBy: number,
+    paintBrushR: number,
     predictionFn: string,
     labelFilter: string,
-    iouFilter: number[],
-    groundTruthFilter: number[],
-    explanationFilter: number[],
+    selectedImage: string,
 }
 
 interface StateConf { }
@@ -21,9 +19,6 @@ export class State {
     ignoreUrl: boolean
     freeze: boolean
     frozenParams: Set<string> = new Set([])
-
-    totalNumImages: number
-    numImages: number
 
     /**
      * 
@@ -47,15 +42,13 @@ export class State {
         const params = this.ignoreUrl ? {} : URLHandler.parameters
 
         this._url = {
-            caseStudy: params['caseStudy'] || 'data_vehicle',
-            method: params['method'] || 'lime',
-            scoreFn: params['scoreFn'] || 'explanation_coverage',
-            sortBy: params['sortBy'] || 1,
-            predictionFn: params['predictionFn'] || 'all_images',
-            labelFilter: params['labelFilter'] || '',
-            iouFilter: params['iouFilter'] || [0, 1],
-            groundTruthFilter: params['groundTruthFilter'] || [0, 1],
-            explanationFilter: params['explanationFilter'] || [0, 1],
+            caseStudy: params['caseStudy'] || 'data_dogs_10',
+            scoreFn: params['scoreFn'] || 'iou',
+            selectedImage: params['selectedImage'] || "n02085620_3360",
+            sortBy: 1,
+            predictionFn: 'all_images',
+            labelFilter: '',
+            paintBrushR: params['paintBrushR'] || 10,
         }
     }
 
@@ -85,15 +78,6 @@ export class State {
     caseStudy(val?) {
         if (val == null) return this._url.caseStudy
         this._url.caseStudy = val
-        this.toURL()
-        return this
-    }
-
-    method(): string
-    method(val): this
-    method(val?) {
-        if (val == null) return this._url.method
-        this._url.method = val
         this.toURL()
         return this
     }
@@ -134,46 +118,21 @@ export class State {
         return this
     }
 
-    iouFilter(): number[]
-    iouFilter(minValue: number, maxValue: number): this
-    iouFilter(minValue?, maxValue?) {
-        if (minValue == null) return this._url.iouFilter
-        this._url.iouFilter = [minValue, maxValue]
+    selectedImage(): string
+    selectedImage(value: string): this
+    selectedImage(value?) {
+        if (value == null) return this._url.selectedImage
+        this._url.selectedImage = value
         this.toURL()
         return this
     }
 
-    groundTruthFilter(): number[]
-    groundTruthFilter(minValue: number, maxValue: number): this
-    groundTruthFilter(minValue?, maxValue?) {
-        if (minValue == null) return this._url.groundTruthFilter
-        this._url.groundTruthFilter = [minValue, maxValue]
+    paintBrushR(): number
+    paintBrushR(value: number): this
+    paintBrushR(value?) {
+        if (value == null) return this._url.paintBrushR
+        this._url.paintBrushR = value
         this.toURL()
-        return this
-    }
-
-    explanationFilter(): number[]
-    explanationFilter(minValue: number, maxValue: number): this
-    explanationFilter(minValue?, maxValue?) {
-        if (minValue == null) return this._url.explanationFilter
-        this._url.explanationFilter = [minValue, maxValue]
-        this.toURL()
-        return this
-    }
-
-    imageCount(): number
-    imageCount(count: number): this
-    imageCount(count?) { 
-        if (count == null) return this.numImages
-        this.numImages = count
-        return this
-    }
-
-    totalImageCount(): number
-    totalImageCount(count: number): this
-    totalImageCount(count?) { 
-        if (count == null) return this.totalNumImages
-        this.totalNumImages = count
         return this
     }
 }

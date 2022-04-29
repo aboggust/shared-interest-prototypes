@@ -1,5 +1,6 @@
 export interface SaliencyImg {
     image: string,
+    image_id: string
     bbox: string[], // Already converted to string in the backend
     saliency: string[], // Already converted to string in the backend
     label: string,
@@ -24,4 +25,13 @@ export interface ConfusionMatrixI {
     prediction: string,
     count: number,
     mean: number,
+}
+
+export interface BestPredicted {
+    classname: string
+    score: number
+    saliency_mask: number[][]
+    iou: number
+    ground_truth_coverage: number
+    explanation_coverage: number
 }

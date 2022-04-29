@@ -1,8 +1,7 @@
 import * as d3 from 'd3';
 import { makeUrl, toPayload } from '../etc/apiHelpers'
 import { URLHandler } from '../etc/URLHandler';
-import { SaliencyImg, Bins, ConfusionMatrixI } from '../types';
-
+import { SaliencyImg, Bins, ConfusionMatrixI, BestPredicted } from '../types';
 
 const baseurl = URLHandler.basicURL()
 
@@ -20,15 +19,13 @@ export class API {
      * Get the saliency image objects for all imageIDs.
      *
      * @param {string} caseStudy - the name of the case study
-     * @param {string} method - the name of the saliency method
      * @param {string[]} imageIDs - a list of string image ids
      * @param {string} scoreFn - the score function name
      * @return {Promise<SaliencyImg[]>} a list of SaliencyImg for the imageIDs in the caseStudy
      */
-    getSaliencyImages(caseStudy: string, method: string, imageIDs: string[], scoreFn: string): Promise<SaliencyImg[]> {
+    getSaliencyImages(caseStudy: string, imageIDs: string[], scoreFn: string): Promise<SaliencyImg[]> {
         const imagesToSend = {
             case_study: caseStudy,
-            method: method,
             image_ids: imageIDs,
             score_fn: scoreFn
         }
@@ -41,15 +38,13 @@ export class API {
      * Get a saliency image objects for a requested imageID.
      *
      * @param {string} caseStudy - the name of the case study
-     * @param {string} method - the name of the saliency method
      * @param {string[]} imageID - a list of string image ids
      * @param {string} scoreFn - the score function name
      * @return {Promise<SaliencyImg>} a SaliencyImg object for the imageID in the caseStudy.
      */
-    getSaliencyImage(caseStudy: string, method: string, imageID: string, scoreFn: string): Promise<SaliencyImg> {
+    getSaliencyImage(caseStudy: string, imageID: string, scoreFn: string): Promise<SaliencyImg> {
         const imagesToSend = {
             case_study: caseStudy,
-            method: method,
             image_id: imageID,
             score_fn: scoreFn
         }
@@ -62,32 +57,19 @@ export class API {
      * Get the imageIDs for the images fitting the filter parameters.
      *
      * @param {string} caseStudy - the name of the case study
-     * @param {string} method - the name of the saliency method
      * @param {number} sortBy - 1 if sort ascending, -1 if sort descending
      * @param {string} predictionFn - the name of the prediction filter
      * @param {string} scoreFn - the score function name
      * @param {string} labelFilter - the name of the label filter
-     * @param {string} iouFilter - min and max iou values
-     * @param {string} groundTruthFilter - min and max ground truth coverage values
-     * @param {string} explanationFilter - min and max explanation coverage values
      * @return {Promise<string[]>} a list of imageIDs
      */
-    getImages(caseStudy: string, method: string, sortBy: number, predictionFn: string, scoreFn: string,
-              labelFilter: string, iouFilter: number[], groundTruthFilter: number[],
-              explanationFilter: number[]): Promise<string[]> {
+    getImages(caseStudy: string, sortBy: number, predictionFn: string, scoreFn: string, labelFilter: string): Promise<string[]> {
         const toSend = {
             case_study: caseStudy,
-            method: method,
             sort_by: sortBy,
             prediction_fn: predictionFn,
             score_fn: scoreFn,
             label_filter: labelFilter,
-            iou_min: iouFilter[0],
-            iou_max: iouFilter[1],
-            ec_min: explanationFilter[0],
-            ec_max: explanationFilter[1],
-            gtc_min: groundTruthFilter[0],
-            gtc_max: groundTruthFilter[1],
         }
         const url = makeUrl(this.baseURL + "/get-images", toSend)
         return d3.json(url)
@@ -125,12 +107,11 @@ export class API {
      * Get the histogram bins for the scoreFn scores of the imageIDs.
      *
      * @param {string} caseStudy - the name of the case study
-     * @param {string} method - the name of the saliency method
      * @param {string[]} imageIDs - a list of string image ids
      * @param {string} scoreFn - the score function name
      * @return {Promise<Bins[]>} a list of Bins for the binned scores of the image IDs
      */
-    binScores(caseStudy: string, method: string, imageIDs: string[], scoreFn: string): Promise<Bins[]> {
+    binScores(caseStudy: string, imageIDs: string[], scoreFn: string): Promise<Bins[]> {
         const imagesToSend = {
             case_study: caseStudy,
             image_ids: imageIDs,
@@ -142,4 +123,40 @@ export class API {
     }
 
 
+    /**
+     * Get the confusion matrix for the imageIDs.
+     *
+     * @param {string} caseStudy - the name of the case study
+     * @param {string} labelFilter - the name of the label filter
+     * @param {string} scoreFn - the score function name
+     * @return {Promise<ConfusionMatrixI[]>} a list of ConfusionMatrixI for the imageIDs in the caseStudy with the label
+     */
+    getConfusionMatrix(caseStudy: string, labelFilter: string, scoreFn: string): Promise<ConfusionMatrixI[]> {
+        const toSend = {
+            case_study: caseStudy,
+            label_filter: labelFilter,
+            score_fn: scoreFn
+        }
+        const url = makeUrl(this.baseURL + "/confusion-matrix", toSend)
+        return d3.json(url)
+    }
+
+    /**
+     * 
+     * @param fname Name of the image file
+     * @param mask Base64 encoded mask
+     * @param si_method 
+     * @param topk 
+     */
+    getBestPrediction(fname: string, mask: string, si_method: string, topk: number = 5): Promise<BestPredicted[]> {
+        const toSend = {
+            fname: fname,
+            mask: mask,
+            si_method: si_method,
+            topk: topk
+        }
+        const url = makeUrl(this.baseURL + "/get-best-prediction")
+        const payload = toPayload(toSend)
+        return d3.json(url, payload)
+    }
 };

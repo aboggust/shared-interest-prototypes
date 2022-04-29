@@ -85,7 +85,7 @@ export class ResultTable extends HTMLComponent<null>{
   </thead>
   <tbody>
     <tr id="row1">
-      <th scope="row" class="align-middle">Saliency Coverage</th>
+      <th scope="row" class="align-middle">Explanation Coverage</th>
     </tr>
     <tr id="row2">
       <th scope="row" class="align-middle">Ground Truth Coverage</th>
@@ -136,12 +136,11 @@ export class ResultTable extends HTMLComponent<null>{
                     const me = d3.select(el)
                     const fname = me.attr('fname')
                     const caseStudy = me.attr('case-study')
-                    const method = me.attr('method')
                     const scoreFn = me.attr('score')
                     const imgDiv = me.append("div")
 
                     const img = new SingleSaliencyImage(imgDiv.node(), self.eventHandler)
-                    self.api.getSaliencyImage(caseStudy, method, fname, scoreFn).then(r => {
+                    self.api.getSaliencyImage(caseStudy, fname, scoreFn).then(r => {
                         img.update(r)
                     })
                 }
