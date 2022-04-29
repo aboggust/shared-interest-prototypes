@@ -22,6 +22,7 @@ interface Selections {
     mainTxt: D3Sel
     labels: D3Sel
     scores: D3Sel
+    info: D3Sel
 }
 
 const Events: EventsI = {

@@ -1,13 +1,13 @@
 export const caseStudyOptions = [
-    { name: "BeerAdvocate: Appearance [SIS]", value: "data_beeradvocate_sis_aspect0" },
-    { name: "BeerAdvocate: Appearance [LIME]", value: "data_beeradvocate_lime_aspect0" },
-    { name: "BeerAdvocate: Appearance [Integrated Gradients]", value: "data_beeradvocate_integrated_gradients_aspect0" },
-    { name: "BeerAdvocate: Aroma [SIS]", value: "data_beeradvocate_sis_aspect1" },
-    { name: "BeerAdvocate: Aroma [LIME]", value: "data_beeradvocate_lime_aspect1" },
-    { name: "BeerAdvocate: Aroma [Integrated Gradients]", value: "data_beeradvocate_integrated_gradients_aspect1" },
-    { name: "BeerAdvocate: Palette [SIS]", value: "data_beeradvocate_sis_aspect2" },
-    { name: "BeerAdvocate: Palette [LIME]", value: "data_beeradvocate_lime_aspect2" },
-    { name: "BeerAdvocate: Palette [Integrated Gradients]", value: "data_beeradvocate_integrated_gradients_aspect2" },
+    { name: "BeerAdvocate: Appearance", value: "aspect0" },
+    { name: "BeerAdvocate: Aroma", value: "aspect1" },
+    { name: "BeerAdvocate: Palette", value: "aspect2" },
+]
+
+export const methodOptions = [
+    { name: "LIME", value: "lime" },
+    { name: "Integrated Gradients", value: "integrated_gradients" },
+    { name: "SIS", value: "sis" },
 ]
 
 export const sortByOptions = [

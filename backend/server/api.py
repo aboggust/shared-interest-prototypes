@@ -14,6 +14,7 @@ class HashableBaseModel(BaseModel):
 
 
 class ResultPayload(HashableBaseModel):
-    case_study: str
+    dataset: str
+    method: str
     result_ids: List[str]
     score_fn: str
