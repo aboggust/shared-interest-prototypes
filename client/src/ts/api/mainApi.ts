@@ -27,11 +27,10 @@ export class API {
      * @param {string} explanationFilter - min and max explanation coverage values
      * @return {Promise<string[]>} a list of imageIDs
      */
-    getResultIDs(caseStudy: string, method: string, sortBy: number, predictionFn: string, scoreFn: string, labelFilter: string,
+    getResultIDs(caseStudy: string, sortBy: number, predictionFn: string, scoreFn: string, labelFilter: string,
         iouFilter: number[], explanationFilter: number[], groundTruthFilter: number[], ): Promise<string[]> {
         const toSend = {
             case_study: caseStudy,
-            method: method,
             sort_by: sortBy,
             prediction_fn: predictionFn,
             score_fn: scoreFn,
@@ -55,11 +54,11 @@ export class API {
      * @param {string} scoreFn - the score function name
      * @return {Promise<SaliencyText>} a SaliencyImg object for the imageID in the caseStudy.
      */
-     getResult(caseStudy: string, method: string, resultID: string, scoreFn: string): Promise<SaliencyText> {
+     getResult(caseStudy: string, resultID: string, scoreFn: string): Promise<SaliencyText> {
         const imagesToSend = {
             case_study: caseStudy,
-            method: method,
             result_id: resultID,
+            score_fn: scoreFn
         }
         const url = makeUrl(this.baseURL + "/get-result", imagesToSend)
         return d3.json(url)
@@ -71,10 +70,9 @@ export class API {
      * @param {string} caseStudy - the name of the case study
      * @return {Promise<string[]>} a list of all model predictions for caseStudy
      */
-     getPredictions(caseStudy: string, method: string): Promise<string[]> {
+     getPredictions(caseStudy: string): Promise<string[]> {
         const toSend = {
-            case_study: caseStudy,
-            method: method,
+            case_study: caseStudy
         }
         const url = makeUrl(this.baseURL + "/get-predictions", toSend)
         return d3.json(url)
@@ -86,10 +84,9 @@ export class API {
      * @param {string} caseStudy - the name of the case study
      * @return {Promise<string[]>} a list of all image labels for caseStudy
      */
-    getLabels(caseStudy: string, method: string): Promise<string[]> {
+    getLabels(caseStudy: string): Promise<string[]> {
         const toSend = {
-            case_study: caseStudy,
-            method: method,
+            case_study: caseStudy
         }
         const url = makeUrl(this.baseURL + "/get-labels", toSend)
         return d3.json(url)
@@ -103,10 +100,9 @@ export class API {
      * @param {string} scoreFn - the score function name
      * @return {Promise<Bins[]>} a list of Bins for the binned scores of the image IDs
      */
-     binScores(caseStudy: string, method: string, resultIDs: string[], scoreFn: string): Promise<Bins[]> {
+     binScores(caseStudy: string, resultIDs: string[], scoreFn: string): Promise<Bins[]> {
         const toSend = {
             case_study: caseStudy,
-            method: method,
             result_ids: resultIDs,
             score_fn: scoreFn
         }

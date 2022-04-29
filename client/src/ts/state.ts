@@ -2,7 +2,6 @@ import { URLHandler } from "./etc/URLHandler"
 
 export interface URLParameters {
     caseStudy: string,
-    method: string,
     scoreFn: string,
     sortBy: number,
     predictionFn: string,
@@ -48,8 +47,7 @@ export class State {
         const params = this.ignoreUrl ? {} : URLHandler.parameters
 
         this._url = {
-            caseStudy: params['caseStudy'] || 'aspect0',
-            method: params['method'] || 'lime',
+            caseStudy: params['caseStudy'] || 'data_beeradvocate_sis_aspect0',
             scoreFn: params['scoreFn'] || 'explanation_coverage',
             sortBy: params['sortBy'] || 1,
             predictionFn: params['predictionFn'] || 'all',
@@ -86,15 +84,6 @@ export class State {
     caseStudy(val?) {
         if (val == null) return this._url.caseStudy
         this._url.caseStudy = val
-        this.toURL()
-        return this
-    }
-
-    method(): string
-    method(val): this
-    method(val?) {
-        if (val == null) return this._url.method
-        this._url.method = val
         this.toURL()
         return this
     }

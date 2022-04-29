@@ -4,7 +4,7 @@ import { Histogram } from './vis/Histogram'
 import { SimpleEventHandler } from './etc/SimpleEventHandler'
 import { API } from './api/mainApi'
 import { State, URLParameters } from './state'
-import { caseStudyOptions, methodOptions, sortByOptions, predictionFnOptions, scoreFnOptions, labelFilterOptions, caseOptions, caseValues } from './etc/selectionOptions'
+import { caseStudyOptions, sortByOptions, predictionFnOptions, scoreFnOptions, labelFilterOptions, caseOptions, caseValues } from './etc/selectionOptions'
 import { SaliencyTextViz } from "./vis/SaliencyTextRow"
 import { SaliencyTexts } from "./vis/SaliencyTexts"
 
@@ -16,23 +16,12 @@ function init(base: D3Sel) {
     <!--  Filter Controls  -->
     <div class="controls container-md cont-nav">
         <div class="form-row">
-            <div class="col-sm-2">
+            <div class="col-sm-3">
                 <div class="input-group input-group-sm mb-3">
                     <div class="input-group-prepend">
-                        <label class="input-group-text" for="case-study-select">Data</label>
+                        <label class="input-group-text" for="case-study-select">Demo</label>
                     </div>
                     <select class="custom-select custom-select-sm ID_case-study-select">
-                        <!-- Fill in from data in TS now -->
-                    </select>
-                </div>
-            </div>
-
-            <div class="col-sm-2">
-                <div class="input-group input-group-sm mb-3">
-                    <div class="input-group-prepend">
-                        <label class="input-group-text" for="saliency-method-select">Saliency</label>
-                    </div>
-                    <select class="custom-select custom-select-sm ID_saliency-method-select">
                         <!-- Fill in from data in TS now -->
                     </select>
                 </div>
@@ -71,7 +60,7 @@ function init(base: D3Sel) {
                 </div>
             </div>
 
-            <div class="col-sm-2">
+            <div class="col-sm-3">
                 <div class="input-group input-group-sm mb-3">
                     <div class="input-group-prepend">
                         <label class="input-group-text" for="prediction-filter">Prediction</label>
@@ -136,12 +125,6 @@ export function main(el: Element, ignoreUrl: boolean = false, stateParams: Parti
             .join('option')
             .attr('value', option => option.value)
             .text(option => option.name),
-        method: base.select('.ID_saliency-method-select'),
-        methodListOptions: base.select('.ID_saliency-method-select').selectAll('option')
-            .data(methodOptions)
-            .join('option')
-            .attr('value', option => option.value)
-            .text(option => option.name),
         scoreFn: base.select('.ID_scorefn-select'),
         scoreFnListOptions: base.select('.ID_scorefn-select').selectAll('option')
             .data(scoreFnOptions)
@@ -189,7 +172,7 @@ export function main(el: Element, ignoreUrl: boolean = false, stateParams: Parti
         * @param {State} state - the current state of the application.
         */
         updateResults: (state: State) => {
-            api.getResultIDs(state.caseStudy(), state.method(), state.sortBy(), state.predictionFn(), state.scoreFn(), state.labelFilter(),
+            api.getResultIDs(state.caseStudy(), state.sortBy(), state.predictionFn(), state.scoreFn(), state.labelFilter(), 
                              state.iouFilter(), state.explanationFilter(), state.groundTruthFilter()).then(IDs => {
                 // Set the number of results
                 state.resultCount(IDs.length)
@@ -206,7 +189,7 @@ export function main(el: Element, ignoreUrl: boolean = false, stateParams: Parti
         */
         updatePage: (state: State) => {
             // Update histograms using all results
-            const allImageIDs = api.getResultIDs(state.caseStudy(), state.method(), state.sortBy(), 'all', state.scoreFn(),
+            const allImageIDs = api.getResultIDs(state.caseStudy(), state.sortBy(), 'all', state.scoreFn(),
                 '', [0, 1], [0, 1], [0, 1])
             selectors.body.style('cursor', 'progress')
             allImageIDs.then(IDs => {
@@ -214,13 +197,13 @@ export function main(el: Element, ignoreUrl: boolean = false, stateParams: Parti
                 state.totalResultCount(IDs.length)
 
                 // Update histograms
-                api.binScores(state.caseStudy(), state.method(), IDs, 'iou').then(bins => {
+                api.binScores(state.caseStudy(), IDs, 'iou').then(bins => {
                     vizs.IouHistogram.update({bins: bins, brushRange: state.iouFilter()})
                 })
-                api.binScores(state.caseStudy(), state.method(), IDs, 'explanation_coverage').then(bins => {
+                api.binScores(state.caseStudy(), IDs, 'explanation_coverage').then(bins => {
                     vizs.ECHistogram.update({bins: bins, brushRange: state.explanationFilter()})
                 })
-                api.binScores(state.caseStudy(), state.method(), IDs, 'ground_truth_coverage').then(bins => {
+                api.binScores(state.caseStudy(), IDs, 'ground_truth_coverage').then(bins => {
                     vizs.GTCHistogram.update({bins: bins, brushRange: state.groundTruthFilter()})
                 })
                 selectors.body.style('cursor', 'default')
@@ -228,7 +211,7 @@ export function main(el: Element, ignoreUrl: boolean = false, stateParams: Parti
 
             // Update image panel
             vizs.results.clear()
-            const imageIDs = api.getResultIDs(state.caseStudy(), state.method(), state.sortBy(), state.predictionFn(), state.scoreFn(),
+            const imageIDs = api.getResultIDs(state.caseStudy(), state.sortBy(), state.predictionFn(), state.scoreFn(),
                 state.labelFilter(), state.iouFilter(), state.explanationFilter(), state.groundTruthFilter())
             selectors.body.style('cursor', 'progress')
             imageIDs.then(IDs => {
@@ -247,7 +230,7 @@ export function main(el: Element, ignoreUrl: boolean = false, stateParams: Parti
         * @param {State} state - the current state of the application.
         */
         updateLabels: (state: State) => {
-            api.getLabels(state.caseStudy(), state.method()).then(labels => {
+            api.getLabels(state.caseStudy()).then(labels => {
                 const labelValues = labels.slice().sort(d3.ascending);
                 labels.sort(d3.ascending).splice.apply(labels, [0, 0 as string | number].concat(labelFilterOptions.map(option => option.name)));
                 labelValues.splice.apply(labelValues, [0, 0 as string | number].concat(labelFilterOptions.map(option => option.value)));
@@ -266,7 +249,7 @@ export function main(el: Element, ignoreUrl: boolean = false, stateParams: Parti
         * @param {State} state - the current state of the application.
         */
         updatePredictions: (state: State) => {
-            api.getPredictions(state.caseStudy(), state.method()).then(predictions => {
+            api.getPredictions(state.caseStudy()).then(predictions => {
                 const predictionValues = predictions.slice().sort(d3.ascending);
                 predictions.sort(d3.ascending).splice.apply(predictions, [0, 0 as string | number].concat(predictionFnOptions.map(option => option.name)));
                 predictionValues.splice.apply(predictionValues, [0, 0 as string | number].concat(predictionFnOptions.map(option => option.value)));
@@ -328,7 +311,6 @@ export function main(el: Element, ignoreUrl: boolean = false, stateParams: Parti
 
         // Set frontend via state parameters
         selectors.caseStudy.property('value', state.caseStudy())
-        selectors.method.property('value', state.method())
         selectors.sortBy.property('value', state.sortBy())
         selectors.scoreFn.property('value', state.scoreFn())
 
@@ -343,17 +325,6 @@ export function main(el: Element, ignoreUrl: boolean = false, stateParams: Parti
         console.log("CaseStudy Changing");
         const caseStudy = selectors.caseStudy.property('value')
         state.caseStudy(caseStudy)
-        state.labelFilter('')
-        eventHelpers.updateLabels(state)
-        state.predictionFn('all')
-        eventHelpers.updatePredictions(state)
-        eventHelpers.updatePage(state)
-    });
-
-    selectors.method.on('change', () => {
-        /* When the method changes, update the page with the new data. */
-        const method = selectors.method.property('value')
-        state.method(method)
         state.labelFilter('')
         eventHelpers.updateLabels(state)
         state.predictionFn('all')
@@ -412,7 +383,7 @@ export function main(el: Element, ignoreUrl: boolean = false, stateParams: Parti
     eventHandler.bind(SaliencyTexts.events.onScreen, ({ el, id, caller }) => {
         /* Lazy load the saliency results. */
         const row = new SaliencyTextViz(el, eventHandler)
-        api.getResult(state.caseStudy(), state.method(), id, state.scoreFn()).then(salTxt => {
+        api.getResult(state.caseStudy(), id, state.scoreFn()).then(salTxt => {
             row.update(salTxt)
         })
     });

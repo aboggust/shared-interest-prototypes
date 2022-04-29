@@ -54,16 +54,6 @@ def send_static_client(file_path: str):
 # ======================================================================
 # MAIN API
 # ======================================================================
-class SaliencyText(BaseModel):
-    words: list
-    saliency_inds: list
-    ground_truth_inds: list
-    label: str
-    prediction: float # TODO update for non-float predictions
-    iou: float
-    ground_truth_coverage: float
-    saliency_coverage: float
-
 
 class Bins(BaseModel):
     x0: float
@@ -71,14 +61,22 @@ class Bins(BaseModel):
     num: int
 
 
-# Load datasets
-saliency_methods = ['sis', 'lime', 'integrated_gradients']
-aspects = ['aspect0', 'aspect1', 'aspect2']
-base_datasets = ['data_beeradvocate',]
-datasets = ['%s_%s_%s' %(dataset, method, aspect)
-            for dataset in base_datasets
-            for method in saliency_methods
-            for aspect in aspects]
+class SaliencyText(BaseModel):
+    words: list
+    explanation_inds: list
+    ground_truth_inds: list
+    label: str
+    prediction: float # TODO update for non-float predictions
+    iou: float
+    ground_truth_coverage: float
+    explanation_coverage: float
+
+
+# Load case study datasets
+datasets = ['data_beeradvocate_sis_aspect0', 'data_beeradvocate_lime_aspect0', 'data_beeradvocate_integrated_gradients_aspect0',
+            'data_beeradvocate_sis_aspect1', 'data_beeradvocate_lime_aspect1', 'data_beeradvocate_integrated_gradients_aspect1',
+            'data_beeradvocate_sis_aspect2', 'data_beeradvocate_lime_aspect2', 'data_beeradvocate_integrated_gradients_aspect2',
+]
 dataframes = {}
 for dataset in datasets:
     dataframe = pd.read_json("./data/examples/%s.json" % dataset)
@@ -86,14 +84,12 @@ for dataset in datasets:
 
 
 @app.get("/api/get-result-ids", response_model=List[str])
-async def get_result_ids(dataset: str, method: str, sort_by: int,
-                         prediction_fn: str, score_fn: str, label_filter: str,
-                         iou_min: float, iou_max: float, sc_min: float,
-                         sc_max: float, gtc_min: float, gtc_max: float):
+async def get_result_ids(case_study: str, sort_by: int, prediction_fn: str,
+                     score_fn: str, label_filter: str, iou_min: float, iou_max: float,
+                     ec_min: float, ec_max: float, gtc_min: float, gtc_max: float):
     """ Get results from dataset given the current filters.
     Args:
-        dataset: The name of the dataset.
-        method: The name of the saliency method.
+        case_study: The name of the case study dataset.
         sort_by: 1 if ascending, -1 if descending.
         prediction_fn: The prediction function. It can be 'all',
                        'correct_only', 'incorrect_only', or any label.
@@ -102,98 +98,83 @@ async def get_result_ids(dataset: str, method: str, sort_by: int,
                       for all labels.
         iou_min: Min iou score to keep.
         iou_max: Max iou score to keep.
-        sc_min: Min saliency coverage score to keep.
-        sc_max: Max saliency coverage score to keep.
+        ec_min: Min explanation coverage score to keep.
+        ec_max: Max explanation coverage score to keep.
         gtc_min: Min ground truth coverage score to keep.
         gtc_max: Max ground truth coverage score to keep.
     Returns:
-        A list of image IDs from dataset filtered given the prediction_fn and
+        A list of image IDs from case_study filtered given the prediction_fn and
          label_filter and sorted by the score_fn in sort_by order.
     """
-    dataset_name = 'data_beeradvocate_%s_%s' % (method, dataset)
-    df = dataframes[dataset_name]
+    df = dataframes[case_study]
 
     # Handle regression data
     is_prediction_correct = lambda df: df.label == df.prediction
     is_prediction_equal = lambda df, prediction: df.prediction == prediction
-    delta = 0.05
-    if df.prediction.dtype == 'float64':
-        def is_prediction_correct(df):
-            return np.logical_and(
-                df.prediction >= pd.to_numeric(df.label) - delta,
-                df.prediction <= pd.to_numeric(df.label) + delta
-            )
-
+    delta = 0.05 # TODO: Update for other datasets
+    if df.prediction.dtype == 'float64': # TODO: update delta for other datasets
+        is_prediction_correct = lambda df: np.logical_and(df.prediction >= pd.to_numeric(df.label) - delta, 
+                                                          df.prediction <= pd.to_numeric(df.label) + delta)
         def is_prediction_equal(df, prediction):
             min_value, max_value = [float(value) for value in prediction.split('-')]
             return np.logical_and(df.prediction >= min_value, df.prediction <= max_value)
 
     # Filter by prediction
     if prediction_fn == "all":
-        prediction_indices = np.ones(len(df))
+        pred_inds = np.ones(len(df))
     elif prediction_fn == "correct_only":
-        prediction_indices = is_prediction_correct(df)
+        pred_inds = is_prediction_correct(df)
     elif prediction_fn == "incorrect_only":
-        prediction_indices = ~is_prediction_correct(df)
+        pred_inds = ~is_prediction_correct(df)
     else:  # Assume predictionFn is a label
-        prediction_indices = is_prediction_equal(df, prediction_fn)
+        pred_inds = is_prediction_equal(df, prediction_fn)
 
-    # Filter by label
+    # Filter by label 
+    
     if label_filter == '':
-        label_indices = np.ones(len(df))
+        label_inds = np.ones(len(df))
     else:
-        label_indices = df.label.apply(str) == label_filter
+        label_inds = df.label.apply(str) == label_filter
 
     # Filter by scores
-    iou_indices = np.logical_and(
-        df.iou.round(2) >= iou_min,
-        df.iou.round(2) <= iou_max)
-    sc_indices = np.logical_and(
-        df.saliency_coverage.round(2) >= sc_min,
-        df.saliency_coverage.round(2) <= sc_max)
-    gtc_indices = np.logical_and(
-        df.ground_truth_coverage.round(2) >= gtc_min,
-        df.ground_truth_coverage.round(2) <= gtc_max)
+    iou_inds = np.logical_and(df.iou.round(2) >= iou_min, df.iou.round(2) <= iou_max)
+    ec_inds = np.logical_and(df.explanation_coverage.round(2) >= ec_min, df.explanation_coverage.round(2) <= ec_max)
+    gtc_inds = np.logical_and(df.ground_truth_coverage.round(2) >= gtc_min, df.ground_truth_coverage.round(2) <= gtc_max)
 
     # Filter data frame.
-    mask = np.logical_and.reduce((prediction_indices, label_indices,
-                                  iou_indices, sc_indices, gtc_indices))
-    filtered_df = df.loc[mask].sort_values(score_fn,
-                                           kind="mergesort",
+    mask = np.logical_and.reduce((pred_inds, label_inds, iou_inds, ec_inds, gtc_inds))
+    filtered_df = df.loc[mask].sort_values(score_fn, kind="mergesort",
                                            ascending=sort_by == 1)
     image_ids = list(filtered_df.index)
     return image_ids
 
 
 @app.get("/api/get-result", response_model=SaliencyText)
-async def get_result(dataset: str, method: str, result_id: str):
+async def get_result(case_study: str, result_id: str, score_fn: str):
     """Gets a single saliency result.
     Args:
-        dataset: The name of the dataset.
-        method: The name of the saliency method.
-        result_id: The id of the result to return.
+        case_study: The name of the case study dataset.
+        image_id: The id of the image to return.
+        score_fn: The score function to return.
     Returns:
-        A dictionary of the result data for result_id from dataset.
+        A dictionary of the result data for result_id from case_study.
     """
-    dataset_name = 'data_beeradvocate_%s_%s' %(method, dataset)
-    df = dataframes[dataset_name]
+    df = dataframes[case_study]
     filtered_df = df.loc[int(result_id)]
     return filtered_df.to_dict()
 
 
 @app.get("/api/get-labels", response_model=List[str])
-async def get_labels(dataset: str, method: str):
-    """Gets the label values given the dataset."""
-    dataset_name = 'data_beeradvocate_%s_%s' %(method, dataset)
-    df = dataframes[dataset_name]
+async def get_labels(case_study: str):
+    """Gets the label values given the case study."""
+    df = dataframes[case_study]
     return sorted(list(df.label.unique()))
 
 
 @app.get("/api/get-predictions", response_model=List[str])
-async def get_predictions(dataset: str, method: str, delta: float=0.1):
-    """Gets the possible prediction values given the dataset and method."""
-    dataset_name = 'data_beeradvocate_%s_%s' %(method, dataset)
-    df = dataframes[dataset_name]
+async def get_predictions(case_study: str, delta: float=0.1):
+    """Gets the possible prediction values given the case study."""
+    df = dataframes[case_study]
 
     # Handle regression data
     if df.prediction.dtype == 'float64':
@@ -211,7 +192,7 @@ async def bin_scores(payload: api.ResultPayload, min_range: int = 0,
     """Bins the scores of the results.
 
     Args:
-        payload: The payload containing the dataset, method, results, and score fn.
+        payload: The payload containing the case study, results, and score fn.
         min_range: The start of the bin range, inclusive. Defaults to 0.
         max_range: The end of the bin range, inclusive. Defaults to 1.
         num_bins: The number of bins to create. Defaults to 11.
@@ -221,8 +202,7 @@ async def bin_scores(payload: api.ResultPayload, min_range: int = 0,
         scores in each bin.
     """
     payload = api.ResultPayload(**payload)
-    dataset_name = 'data_beeradvocate_%s_%s' % (payload.method, payload.dataset)
-    df = dataframes[dataset_name]
+    df = dataframes[payload.case_study]
     filtered_df = df.loc[[int(id) for id in payload.result_ids]]
     scores = filtered_df[payload.score_fn].tolist()
     bins = np.linspace(min_range, max_range, num_bins)
